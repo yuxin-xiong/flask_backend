@@ -1,0 +1,7 @@
+__pycache__/
+.idea/
+SWiG/
+*.pth
+*.jpg
+*.png
+static/output/*.txt
