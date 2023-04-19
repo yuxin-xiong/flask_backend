@@ -16,8 +16,10 @@ from models import build_model
 from pathlib import Path
 from nltk.corpus import wordnet as wn
 
+
 def noun2synset(noun):
-    return wn.synset_from_pos_and_offset(noun[0], int(noun[1:])).name() if re.match(r'n[0-9]*', noun) else "'{}'".format(noun)
+    return wn.synset_from_pos_and_offset(noun[0], int(noun[1:])).name() if re.match(r'n[0-9]*',
+                                                                                    noun) else "'{}'".format(noun)
 
 
 def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=None, pred_bbox_conf=None,
@@ -35,8 +37,8 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
     purple_color = (197, 152, 173)
     colors = [red_color, green_color, blue_color, orange_color, brown_color, purple_color]
     white_color = (255, 255, 255)
-    line_width = 4
-
+    line_width = 2
+    res_color = {}
     # the value of pred_bbox_conf is logit, not probability.
     for i in range(num_roles):
         if pred_bbox_conf[i] >= 0:
@@ -50,9 +52,11 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
             lt = (lt_0, lt_1)
             rb = (rb_0, rb_1)
             cv2.rectangle(img=image, pt1=lt, pt2=rb, color=colors[i], thickness=line_width, lineType=-1)
-
-            # label
             label = noun_labels[i].split('.')[0]
+            # label = noun_labels[i]
+            res_color[label] = colors[i]
+            print(res_color)
+
             text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
             p1 = (lt[0], lt[1] - text_size[1])
             cv2.rectangle(img=image, pt1=(p1[0], (p1[1] - 2 - baseline)),
@@ -63,7 +67,7 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
     cv2.imwrite("{}/{}_result.jpg".format(output_dir, image_name), image)
     print('-' * 20 + " output bbox success " + '-' * 20)
 
-    return
+    return res_color
 
 
 def process_image(image):
@@ -115,11 +119,10 @@ def process_image(image):
 
 def predict(model, device, image_path=None, inference=False,
             idx_to_verb=None, idx_to_role=None,
-              vidx_ridx=None, idx_to_class=None, output_dir=None):
+            vidx_ridx=None, idx_to_class=None, output_dir=None):
     model.eval()
     image_name = image_path.replace('\\', '/')
     image_name = image_name.split('/')[-1].split('.')[0]
-
 
     # load image & process
     image = Image.open(image_path)
@@ -143,7 +146,7 @@ def predict(model, device, image_path=None, inference=False,
     verb_label = idx_to_verb[top1_verb]
     role_labels = []
     noun_labels = []
-    print('-' * 20+"model success, ready predict boxes"+'-' * 20)
+    print('-' * 20 + "model success, ready predict boxes" + '-' * 20)
     for i in range(num_roles):
         top1_noun = torch.topk(pred_noun[i], k=1, dim=0)[1].item()
         role_labels.append(idx_to_role[roles[i]])
@@ -177,5 +180,5 @@ def predict(model, device, image_path=None, inference=False,
         f.close()
 
     print('-' * 20 + " output txt success, ready output bbox " + '-' * 20)
-    visualize_bbox(image_path=image_path, num_roles=num_roles, noun_labels=noun_labels, pred_bbox=pb_xyxy,
+    return visualize_bbox(image_path=image_path, num_roles=num_roles, noun_labels=noun_labels, pred_bbox=pb_xyxy,
                    pred_bbox_conf=pred_bbox_conf, output_dir=output_dir)

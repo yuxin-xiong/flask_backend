@@ -45,7 +45,8 @@ def hello_world():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
-    global verb
+    verb = ''
+    res_info = []
     my_file = request.files['file']
     print(datetime.datetime.now(), my_file.filename)
 
@@ -57,25 +58,35 @@ def upload_file():
         my_file.save(src_path)
         args = current_app.args
         print('-' * 20 + " ready predict " + '-' * 20)
-        predict(args.model, device=args.device, image_path=src_path, inference=True,
-                idx_to_verb=args.idx_to_verb, idx_to_role=args.idx_to_role,
-                vidx_ridx=args.vidx_ridx, idx_to_class=args.idx_to_class,
-                output_dir=args.output_dir)
+        label_color = predict(args.model, device=args.device, image_path=src_path, inference=True,
+                            idx_to_verb=args.idx_to_verb, idx_to_role=args.idx_to_role,
+                            vidx_ridx=args.vidx_ridx, idx_to_class=args.idx_to_class,
+                            output_dir=args.output_dir)
 
+        # 信息提取
         res_path = 'static/output/' + "{}_result.txt".format(my_file.filename.split('.')[0])
         with open(res_path, "r") as file:
             content = file.read()
         lines = content.split("\n")
+        # 当前行为动词
+        verb = lines[0].split(":")[1].strip()
+
         for line in lines:
             if line.strip() == "":
                 continue
-            elif line.startswith("verb:"):
-                # 当前行为动词
-                verb = line.split(":")[1].strip()
+            elif 'role:' in line and 'noun:' in line:
+                role = line.split(',')[0].split(':')[1].strip()
+                noun_t = line.split(',')[1].split(':')[1].strip()
+                noun = noun_t.split('.')[0]
+                color = label_color.get(noun, 'null')
+                res_info.append({'role': role, 'noun': noun, 'color': color})
+        print(res_info)
         return jsonify({'status': 1,
                         'image_url': 'http://127.0.0.1:5000/static/input/' + my_file.filename,
-                        'draw_url': 'http://127.0.0.1:5000/static/output/' + "{}_result.jpg".format(my_file.filename.split('.')[0]),
-                        'verb': verb
+                        'draw_url': 'http://127.0.0.1:5000/static/output/' + "{}_result.jpg".format(
+                            my_file.filename.split('.')[0]),
+                        'verb': verb,
+                        'res_info': res_info
                         })
     return jsonify({'status': 0})
 

@@ -65,13 +65,14 @@ def get_args_parser():
 
 class GSRTRansfomer(object):
     def __init__(self):
+        print("download wordnet")
         nltk.download('wordnet')
         parser = argparse.ArgumentParser('GSRTR init script', parents=[get_args_parser()])
+        # 参数成员
         self.args = parser.parse_args()
         if self.args.output_dir:
             Path(self.args.output_dir).mkdir(parents=True, exist_ok=True)
         self.init_model(self.args)
-        g.args = self.args
 
     def init_model(self, args):
         # fix the seed
@@ -91,7 +92,6 @@ class GSRTRansfomer(object):
         model, _ = build_model(args)
         model.to(device)
         args.device = device
-        print(args.device)
         checkpoint = torch.load(args.saved_model, map_location='cpu')
         model.load_state_dict(checkpoint['model'])
         args.model = model
