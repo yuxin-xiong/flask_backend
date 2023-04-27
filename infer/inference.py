@@ -10,6 +10,7 @@ import skimage.transform
 import re
 from util import box_ops
 from PIL import Image
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from datasets import build_dataset
 from models import build_model
@@ -37,7 +38,7 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
     purple_color = (197, 152, 173)
     colors = [red_color, green_color, blue_color, orange_color, brown_color, purple_color]
     white_color = (255, 255, 255)
-    line_width = 2
+    line_width = 3
     res_color = {}
     # the value of pred_bbox_conf is logit, not probability.
     for i in range(num_roles):
@@ -54,7 +55,7 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
             cv2.rectangle(img=image, pt1=lt, pt2=rb, color=colors[i], thickness=line_width, lineType=-1)
             label = noun_labels[i].split('.')[0]
             # label = noun_labels[i]
-            res_color[label] = colors[i]
+            res_color[label] = str(colors[i])
             print(res_color)
 
             text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
@@ -117,6 +118,7 @@ def process_image(image):
             )
 
 
+
 def predict(model, device, image_path=None, inference=False,
             idx_to_verb=None, idx_to_role=None,
             vidx_ridx=None, idx_to_class=None, output_dir=None):
@@ -132,26 +134,63 @@ def predict(model, device, image_path=None, inference=False,
     image, info = process_image(image)
     image = image.to(device)
     info = {k: v.to(device) if type(v) is not str else v for k, v in info.items()}
-    # print(info)
 
     output = model(image, inference=inference)
-    pred_verb = output['pred_verb'][0]
+    pred_verb = F.softmax(output['pred_verb'][0],dim=0)
     pred_noun = output['pred_noun'][0]
     pred_bbox = output['pred_bbox'][0]
     pred_bbox_conf = output['pred_bbox_conf'][0]
 
-    top1_verb = torch.topk(pred_verb, k=1, dim=0)[1].item()
-    roles = vidx_ridx[top1_verb]
-    num_roles = len(roles)
-    verb_label = idx_to_verb[top1_verb]
-    role_labels = []
-    noun_labels = []
-    print('-' * 20 + "model success, ready predict boxes" + '-' * 20)
+
+    # # 拿到前五个动词
+    # top_verb_val, top_verb_index= torch.topk(pred_verb, k=5, dim=0)
+    # top_verb_val_list = top_verb_val.tolist()
+    #
+    # # [24,234,428,67,429]
+    # top_verb_index_list = top_verb_index.tolist()
+    #
+    # # [[5,94,126],[5,94,126],[5,94,126],[5,72,39,176,126],[5,126,94,52]]
+    # roles_list=[]
+    #
+    # # [3,3,3,5,4]
+    # num_roles_list=[]
+    #
+    # # ['biting','licking','chewing','eating','stuffing']
+    # verb_label_list=[]
+    #
+    # for i in range(len(top_verb_index_list)):
+    #     rs = vidx_ridx[top_verb_index_list[i]]
+    #     roles_list.append(rs)
+    #     num_roles_list.append(len(rs))
+    #     verb_label_list.append(idx_to_verb[top_verb_index_list[i]])
+
+    # role_labels_list = []
+    # noun_labels_list = []
+    # for i in range(len(top_verb_index_list)):
+    #     ro_las = []
+    #     no_las = []
+    #     for j in range(num_roles_list[i]):
+    #         t_no= torch.topk(pred_noun[i], k=pred_noun[i].numel(), dim=0, largest=True)[1]
+    #         top_noun = t_no.tolist()
+    #         ro_las.append(idx_to_role[role_labels_list[i][j]])
+    #     role_labels_list.append(ro_las)
+
+
+
+    top1_verb = torch.topk(pred_verb, k=1, dim=0)[1].item()   # 24
+    roles = vidx_ridx[top1_verb]   # [5,94,126]
+    num_roles = len(roles)    # 3
+    verb_label = idx_to_verb[top1_verb]     # biting
+    role_labels = [] #['agent','item','place']
+    noun_labels = [] #['female_child.n.01','apple.n.01','outdoor.n.01']
+    # 0,26; 1,184; 2,4;
     for i in range(num_roles):
         top1_noun = torch.topk(pred_noun[i], k=1, dim=0)[1].item()
         role_labels.append(idx_to_role[roles[i]])
         noun_labels.append(noun2synset(idx_to_class[top1_noun]))
 
+
+    print('-' * 20 + "model success, ready predict boxes" + '-' * 20)
     # convert bbox
     mw, mh = info['max_width'], info['max_height']
     w, h = info['width'], info['height']
@@ -181,4 +220,4 @@ def predict(model, device, image_path=None, inference=False,
 
     print('-' * 20 + " output txt success, ready output bbox " + '-' * 20)
     return visualize_bbox(image_path=image_path, num_roles=num_roles, noun_labels=noun_labels, pred_bbox=pb_xyxy,
-                   pred_bbox_conf=pred_bbox_conf, output_dir=output_dir)
+                          pred_bbox_conf=pred_bbox_conf, output_dir=output_dir)

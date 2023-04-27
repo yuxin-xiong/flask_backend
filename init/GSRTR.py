@@ -84,7 +84,6 @@ class GSRTRansfomer(object):
         # num noun classes in train dataset
         dataset_train = build_dataset(image_set='train', args=args)
         args.num_noun_classes = dataset_train.num_nouns()
-
         # build model
         print('-' * 20+"build model"+'-' * 20)
         print(args.device)

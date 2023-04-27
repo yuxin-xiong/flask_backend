@@ -113,6 +113,7 @@ class GSRTR(nn.Module):
         # outputs
         out = {}
         out['pred_verb'] = torch.cat(batch_verb, dim=0)
+        # print(out['pred_verb'])
         out['pred_noun'] = torch.cat(batch_noun, dim=0)
         out['pred_bbox'] = torch.cat(batch_bbox, dim=0)
         out['pred_bbox_conf'] = torch.cat(batch_bbox_conf, dim=0)

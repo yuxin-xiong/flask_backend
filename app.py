@@ -8,6 +8,7 @@ from flask import *
 
 from infer.inference import predict
 from init.GSRTR import GSRTRansfomer
+from flask_sqlalchemy import SQLAlchemy
 
 UPLOAD_FOLDER = r'./static/input'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpge'])
@@ -15,12 +16,24 @@ app = Flask(__name__)
 
 app.secret_key = 'secret!'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# 解决缓存刷新问题
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:04036837@localhost/gsrtr'
+db = SQLAlchemy(app)
 
 werkzeug_logger = rel_log.getLogger('werkzeug')
 werkzeug_logger.setLevel(rel_log.ERROR)
 
-# 解决缓存刷新问题
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
+class ImageFIle(db.Model):
+    filename = db.Column(db.String(255), primary_key=True)
+    verb = db.Column(db.String(255))
+
+@app.route('/search',methods=['GET','POST'])
+def search_imag():
+    keyword = request.args.get('keyword')
+
+    results = ImageFIle.query.filter(ImageFIle.verb.like(f'%{keyword}%')).all()
 
 
 # 添加header解决跨域
@@ -45,10 +58,8 @@ def hello_world():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
-    verb = ''
     res_info = []
     my_file = request.files['file']
-    print(datetime.datetime.now(), my_file.filename)
 
     if my_file and allowed_file(my_file.filename):
         # 合并路径
@@ -79,8 +90,10 @@ def upload_file():
                 noun_t = line.split(',')[1].split(':')[1].strip()
                 noun = noun_t.split('.')[0]
                 color = label_color.get(noun, 'null')
+                print(color)
                 res_info.append({'role': role, 'noun': noun, 'color': color})
         print(res_info)
+
         return jsonify({'status': 1,
                         'image_url': 'http://127.0.0.1:5000/static/input/' + my_file.filename,
                         'draw_url': 'http://127.0.0.1:5000/static/output/' + "{}_result.jpg".format(

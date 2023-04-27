@@ -34,11 +34,14 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 class CSVDataset(Dataset):
     """CSV dataset."""
 
-    def __init__(self, img_folder, ann_file, class_list, verb_path, role_path, verb_info, is_training, transform=None):
+    def __init__(self, img_folder, ann_file, class_list, verb_path, role_path,  verb_info, is_training, transform=None):
         """
         Parameters:
-            - ann_file : CSV file with annotations
-            - class_list : CSV file with class list
+            - ann_file : CSV file with annotations       PATHS[image_set] .json文件
+            - class_list : CSV file with class list      train_classes.csv
+            - verb_path：verb_indices.txt
+            - role_path：role_indices.txt
+            - verb_info：imsitu_space.json verbs
         """
         self.img_folder = img_folder
         self.ann_file = ann_file
@@ -50,9 +53,11 @@ class CSVDataset(Dataset):
         self.is_training = is_training
         self.color_change = transforms.Compose([transforms.ColorJitter(hue=0.1, saturation=0.1, brightness=0.1), transforms.RandomGrayscale(p=0.3)])
 
+        # load train classes
         with open(self.class_list, 'r') as file:
             self.classes, self.idx_to_class = self.load_classes(csv.reader(file, delimiter=','))
 
+        #load train.json
         with open(self.ann_file) as file:
             self.SWiG_json = json.load(file)
 
@@ -70,12 +75,16 @@ class CSVDataset(Dataset):
             self.image_to_image_idx[image_name] = i
             i += 1
 
-        # verb_role
+
+        # 处理结果
+        # {
+        #     'tattooing': ['agent', 'target', 'tool', 'place'],
+        #     'raining': ['place']
+        # }
         self.verb_role = {verb: value['order'] for verb, value in verb_info.items()}
 
         # for each verb, the indices of roles in the frame.
         self.vidx_ridx = [[self.role_to_idx[role] for role in self.verb_role[verb]] for verb in self.idx_to_verb]
-
 
     def load_classes(self, csv_reader):
         result = {}
