@@ -36,6 +36,7 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
     orange_color = (98, 129, 240)
     brown_color = (79, 99, 216)
     purple_color = (197, 152, 173)
+
     colors = [red_color, green_color, blue_color, orange_color, brown_color, purple_color]
     white_color = (255, 255, 255)
     line_width = 3
@@ -55,7 +56,8 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
             cv2.rectangle(img=image, pt1=lt, pt2=rb, color=colors[i], thickness=line_width, lineType=-1)
             label = noun_labels[i].split('.')[0]
             # label = noun_labels[i]
-            res_color[label] = str(colors[i])
+            rgb_color=tuple(reversed(colors[i]))
+            res_color[label] = str(rgb_color)
             print(res_color)
 
             text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)

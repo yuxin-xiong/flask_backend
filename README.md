@@ -38,3 +38,7 @@ v1.1 branch return image object info eg:
     "verb": "sitting"
 }
 ```
+
+v1.2 乱改
+
+v1.3 差不多了
