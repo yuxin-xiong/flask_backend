@@ -44,7 +44,11 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
     # the value of pred_bbox_conf is logit, not probability.
     for i in range(num_roles):
         if pred_bbox_conf[i] >= 0:
-            # bbox
+
+            label = noun_labels[i].split('.')[0]
+            if label == "'blank'":
+                continue
+
             pred_left_top = (int(pred_bbox[i][0].item()), int(pred_bbox[i][1].item()))
             pred_right_bottom = (int(pred_bbox[i][2].item()), int(pred_bbox[i][3].item()))
             lt_0 = max(pred_left_top[0], line_width)
@@ -54,14 +58,13 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
             lt = (lt_0, lt_1)
             rb = (rb_0, rb_1)
             cv2.rectangle(img=image, pt1=lt, pt2=rb, color=colors[i], thickness=line_width, lineType=-1)
-            label = noun_labels[i].split('.')[0]
             # label = noun_labels[i]
             rgb_color=tuple(reversed(colors[i]))
             res_color[label] = str(rgb_color)
             print(res_color)
-
             text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
             p1 = (lt[0], lt[1] - text_size[1])
+
             cv2.rectangle(img=image, pt1=(p1[0], (p1[1] - 2 - baseline)),
                           pt2=((p1[0] + text_size[0]), (p1[1] + text_size[1])), color=colors[i], thickness=-1)
             cv2.putText(image, label, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, white_color, 1, 8)
@@ -142,43 +145,7 @@ def predict(model, device, image_path=None, inference=False,
     pred_noun = output['pred_noun'][0]
     pred_bbox = output['pred_bbox'][0]
     pred_bbox_conf = output['pred_bbox_conf'][0]
-
-
-    # # 拿到前五个动词
-    # top_verb_val, top_verb_index= torch.topk(pred_verb, k=5, dim=0)
-    # top_verb_val_list = top_verb_val.tolist()
     #
-    # # [24,234,428,67,429]
-    # top_verb_index_list = top_verb_index.tolist()
-    #
-    # # [[5,94,126],[5,94,126],[5,94,126],[5,72,39,176,126],[5,126,94,52]]
-    # roles_list=[]
-    #
-    # # [3,3,3,5,4]
-    # num_roles_list=[]
-    #
-    # # ['biting','licking','chewing','eating','stuffing']
-    # verb_label_list=[]
-    #
-    # for i in range(len(top_verb_index_list)):
-    #     rs = vidx_ridx[top_verb_index_list[i]]
-    #     roles_list.append(rs)
-    #     num_roles_list.append(len(rs))
-    #     verb_label_list.append(idx_to_verb[top_verb_index_list[i]])
-
-    # role_labels_list = []
-    # noun_labels_list = []
-    # for i in range(len(top_verb_index_list)):
-    #     ro_las = []
-    #     no_las = []
-    #     for j in range(num_roles_list[i]):
-    #         t_no= torch.topk(pred_noun[i], k=pred_noun[i].numel(), dim=0, largest=True)[1]
-    #         top_noun = t_no.tolist()
-    #         ro_las.append(idx_to_role[role_labels_list[i][j]])
-    #     role_labels_list.append(ro_las)
-
-
-
     top1_verb = torch.topk(pred_verb, k=1, dim=0)[1].item()   # 24
     roles = vidx_ridx[top1_verb]   # [5,94,126]
     num_roles = len(roles)    # 3
@@ -190,7 +157,6 @@ def predict(model, device, image_path=None, inference=False,
         top1_noun = torch.topk(pred_noun[i], k=1, dim=0)[1].item()
         role_labels.append(idx_to_role[roles[i]])
         noun_labels.append(noun2synset(idx_to_class[top1_noun]))
-
 
     print('-' * 20 + "model success, ready predict boxes" + '-' * 20)
     # convert bbox
