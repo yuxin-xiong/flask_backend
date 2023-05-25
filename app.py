@@ -1,8 +1,7 @@
-import argparse
-import datetime
+
 import logging as rel_log
 import os
-import shutil
+
 from datetime import timedelta
 
 import nltk
@@ -13,33 +12,23 @@ import nltk.stem as ns
 
 from infer.inference import predict
 from init.GSRTR import GSRTRansfomer
-from flask_sqlalchemy import SQLAlchemy
+
 import pymysql
-UPLOAD_FOLDER = r'./static/input'
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpge'])
-app = Flask(__name__)
-
 app.secret_key = 'secret!'
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpge'])
+
+app = Flask(__name__)
+UPLOAD_FOLDER = r'./static/input'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# 解决缓存刷新问题
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
-
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:04036837@localhost:3306/gsrtr'
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-#
-# db = SQLAlchemy(app)
-# cursor = db.cursor()
-
-werkzeug_logger = rel_log.getLogger('werkzeug')
-werkzeug_logger.setLevel(rel_log.ERROR)
-
-# class fileverb(db.Model):
-#     filename = db.Column(db.String(255), primary_key=True)
-#     verb = db.Column(db.String(255))
-
 conn = pymysql.connect(host='localhost', user='root', password='04036837', port=3306,
                        db='gsrtr')
 cur = conn.cursor()
+
+werkzeug_logger = rel_log.getLogger('werkzeug')
+werkzeug_logger.setLevel(rel_log.ERROR)
+# 解决缓存刷新问题
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
+
 
 
 # 添加header解决跨域
@@ -58,21 +47,7 @@ def allowed_file(filename):
 
 @app.route('/')
 def hello_world():
-    # print(current_app.model.args)
     return redirect(url_for('static', filename='./index.html'))
-
-# def transform_search_result(data, roles):
-#     roles.insert(0,'file')
-#     result = []
-#     for item in data:
-#         item_dict = {}
-#         for i, role in enumerate(roles):
-#             if role == 'file':
-#                 item_dict[role] = item[i]
-#             else:
-#                 item_dict[role] = item[i].split('.')[0]
-#         result.append(item_dict)
-#     return result
 
 def transform_result(data, roles):
     roles.insert(0,'file')
@@ -211,53 +186,6 @@ def upload_file():
 
     return jsonify({'status': 0})
 
-# 关键字搜索
-# @app.route('/search',methods=['GET','POST'])
-def search_imag():
-    keyword = request.args.get('keyword')
-    print(keyword)
-
-    idx_to_verb = current_app.args.idx_to_verb
-    vidx_ridx = current_app.args.vidx_ridx
-    idx_to_role = current_app.args.idx_to_role
-
-    verb_index = idx_to_verb.index(keyword)
-    roles_index = vidx_ridx[verb_index]
-    column_labels= []
-    for i in range(len(roles_index)):
-        column_labels.append(idx_to_role[roles_index[i]])
-
-    print("roles_index: ", roles_index)
-    print("column_labels: ", column_labels)
-
-    select_caluse = 'SELECT file'
-    for col in column_labels:
-        select_caluse += f", {col}"
-    print(select_caluse)
-    query = select_caluse + f" FROM rolestable WHERE verb like '%{keyword}%' LIMIT 40"
-    print("===================select query================")
-    print(query)
-    res = ''
-    try:
-        cur.execute(query)
-        res = cur.fetchall()
-    except:
-        conn.rollback()
-    print(res)
-
-    file_items = [item[0] for item in res]
-    res_dic=transform_search_result(res, column_labels)
-
-    print('file_items:'+ str(file_items))
-    print('res_dic:'+ str(res_dic))
-
-    return jsonify({
-        'search_file_list':file_items,
-        'search_file_info':res_dic,
-        'search_file_roles':column_labels
-    })
-
-
 def buildSelectBySentence(verb, columns, nouns):
     # 构建条件部分
     conditions = []
@@ -271,7 +199,7 @@ def buildSelectBySentence(verb, columns, nouns):
     count_statements = []
     for i, column in enumerate(columns):
         count_statements.append(f"CASE WHEN {conditions[i]} THEN 1 ELSE 0 END\n")
-    # 构建主查询部分
+
     select_caluse = "SELECT file, verb, "
     select_caluse += ', '.join(columns)
     sub_select = select_caluse + f" FROM SWiGData WHERE verb = '{verb}' "
@@ -281,7 +209,7 @@ def buildSelectBySentence(verb, columns, nouns):
     query = f"SELECT *, " \
             f"{' + '.join(count_statements)} AS match_count \n" \
             f"FROM ({sub_select}) AS subquery\n WHERE {nl.join(conditions)} \n" \
-            f"ORDER BY match_count DESC, verb DESC limit 40 \n"
+            f"OR (verb = '{verb}') ORDER BY match_count DESC, verb DESC limit 40 \n"
 
     print("***********************************select query**********************************")
     print(query)
@@ -369,6 +297,7 @@ def searchBySentence():
         'search_file_info':res_dic,
         'search_file_roles':column_labels
     })
+
 
 if __name__ == '__main__':
     with app.app_context():

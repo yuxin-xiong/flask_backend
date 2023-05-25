@@ -39,7 +39,7 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
 
     colors = [red_color, green_color, blue_color, orange_color, brown_color, purple_color]
     white_color = (255, 255, 255)
-    line_width = 3
+    line_width = 4
     res_color = {}
     # the value of pred_bbox_conf is logit, not probability.
     for i in range(num_roles):
@@ -62,12 +62,12 @@ def visualize_bbox(image_path=None, num_roles=None, noun_labels=None, pred_bbox=
             rgb_color=tuple(reversed(colors[i]))
             res_color[label] = str(rgb_color)
             print(res_color)
-            text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
-            p1 = (lt[0], lt[1] - text_size[1])
-
-            cv2.rectangle(img=image, pt1=(p1[0], (p1[1] - 2 - baseline)),
-                          pt2=((p1[0] + text_size[0]), (p1[1] + text_size[1])), color=colors[i], thickness=-1)
-            cv2.putText(image, label, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, white_color, 1, 8)
+            # text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            # p1 = (lt[0], lt[1] - text_size[1])
+            #
+            # cv2.rectangle(img=image, pt1=(p1[0], (p1[1] - 2 - baseline)),
+            #               pt2=((p1[0] + text_size[0]), (p1[1] + text_size[1])), color=colors[i], thickness=-1)
+            # cv2.putText(image, label, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.5, white_color, 1, 6)
 
             # save image
     cv2.imwrite("{}/{}_result.jpg".format(output_dir, image_name), image)
@@ -88,7 +88,6 @@ def process_image(image):
     if largest_side * scale > max_side:
         scale = max_side / largest_side
 
-    # resize the image with the computed scale
     image = skimage.transform.resize(image, (int(round(rows_orig * scale)), int(round((cols_orig * scale)))))
     rows, cols, cns = image.shape
     new_image = np.zeros((rows, cols, cns)).astype(np.float32)
@@ -146,7 +145,8 @@ def predict(model, device, image_path=None, inference=False,
     pred_bbox = output['pred_bbox'][0]
     pred_bbox_conf = output['pred_bbox_conf'][0]
     #
-    top1_verb = torch.topk(pred_verb, k=1, dim=0)[1].item()   # 24
+
+    top1_verb = torch.topk(pred_verb, k=1, dim=0)[1].item()  # 24
     roles = vidx_ridx[top1_verb]   # [5,94,126]
     num_roles = len(roles)    # 3
     verb_label = idx_to_verb[top1_verb]     # biting
